@@ -327,7 +327,7 @@ foreign lib {
 	/// @param mode compile mode. Use `EXEC_MODE` for statements `EVAL_MODE` for expressions.
 	/// @param module target module. Use NULL for the main module.
 	/// @return `true` if the execution is successful or `false` if an exception is raised.
-	py_exec :: proc() -> i32 ---
+	py_exec :: proc(source: cstring, filename: cstring, mode: py_CompileMode, module: py_Ref) -> i32 ---
 
 	/// Evaluate a source string. Equivalent to `py_exec(source, "<string>", EVAL_MODE, module)`.
 	py_eval :: proc() -> i32 ---

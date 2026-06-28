@@ -7,12 +7,10 @@ main :: proc () {
 	defer {
 		pkpy.py_finalize()
 	}
-
-	/*
-	ok := pkpy.py_exec("print('Hello World!')", "<string>", pkpy.EXEC_MODE, nil);
-	if !ok {
+	
+	ok: i32 = pkpy.py_exec("i = 32 * 15.00003432; print(f\"Hello World! {i:.2f}\")", "<string>", .EXEC_MODE, nil);
+	if ok == 0 {
 		pkpy.py_printexc()
 		return
 	}
-	*/
 }
