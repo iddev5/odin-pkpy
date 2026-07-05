@@ -1,8 +1,0 @@
-inputs = [
-	"pocketpy"
-]
-
-output_folder = "."
-imports_file = ""
-package_name = "pocketpy"
-imports_file = "pocketpy/imports.odin"

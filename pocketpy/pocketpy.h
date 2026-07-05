@@ -11,18 +11,22 @@
 
 // clang-format off
 
-#define PK_VERSION				"2.1.8"
+#define PK_VERSION				"2.1.9"
 #define PK_VERSION_MAJOR            2
 #define PK_VERSION_MINOR            1
-#define PK_VERSION_PATCH            8
+#define PK_VERSION_PATCH            9
 
 /*************** feature settings ***************/
 #ifndef PK_ENABLE_OS                // can be overridden by cmake
 #define PK_ENABLE_OS                1
 #endif
 
-#ifndef PK_ENABLE_THREADS           // can be overridden by cmake
-#define PK_ENABLE_THREADS           1
+#ifndef PK_ENABLE_THREADS           // must be enabled from cmake
+#define PK_ENABLE_THREADS           0
+#endif
+
+#ifndef PK_ENABLE_DLL               // must be enabled from cmake
+#define PK_ENABLE_DLL               0
 #endif
 
 #ifndef PK_ENABLE_DETERMINISM       // must be enabled from cmake
@@ -61,12 +65,6 @@
 /*************** internal settings ***************/
 // This is the maximum character length of a module path
 #define PK_MAX_MODULE_PATH_LEN      63
-
-// This is some math constants
-#define PK_M_PI                     3.1415926535897932384
-#define PK_M_E                      2.7182818284590452354
-#define PK_M_DEG2RAD                0.017453292519943295
-#define PK_M_RAD2DEG                57.29577951308232
 
 // Hash table load factor (smaller ones mean less collision but more memory)
 // For class instance
@@ -205,6 +203,11 @@ typedef union c11_vec3i {
     int data[3];
 } c11_vec3i;
 
+typedef union c11_vec4i {
+    struct { int x, y, z, w; };
+    int data[4];
+} c11_vec4i;
+
 typedef union c11_vec2 {
     struct { float x, y; };
     float data[2];
@@ -262,21 +265,6 @@ typedef int64_t py_i64;
 typedef double py_f64;
 /// A generic destructor function.
 typedef void (*py_Dtor)(void*);
-
-#ifndef PK_IS_AMALGAMATED_C
-#ifdef PK_IS_PUBLIC_INCLUDE
-typedef struct py_TValue {
-    py_Type type;
-    bool is_ptr;
-    int extra;
-
-    union {
-        int64_t _i64;
-        char _chars[16];
-    };
-} py_TValue;
-#endif
-#endif
 
 /// A string view type. It is helpful for passing strings which are not null-terminated.
 typedef struct c11_sv {
@@ -641,9 +629,9 @@ PK_API void py_tphookattributes(py_Type type,
 
 /************* Inspection *************/
 
-/// Get the current `function` object on the stack.
+/// Get the current `Callable` object on the stack of the most recent vectorcall.
 /// Return `NULL` if not available.
-/// NOTE: This function should be placed at the beginning of your decl-based bindings.
+/// NOTE: This function should be placed at the beginning of your bindings or you will get wrong result.
 PK_API py_StackRef py_inspect_currentfunction();
 /// Get the current `module` object where the code is executed.
 /// Return `NULL` if not available.
@@ -1010,12 +998,14 @@ PK_API void py_newvec2(py_OutRef out, c11_vec2);
 PK_API void py_newvec3(py_OutRef out, c11_vec3);
 PK_API void py_newvec2i(py_OutRef out, c11_vec2i);
 PK_API void py_newvec3i(py_OutRef out, c11_vec3i);
+PK_API void py_newvec4i(py_OutRef out, c11_vec4i);
 PK_API void py_newcolor32(py_OutRef out, c11_color32);
 PK_API c11_mat3x3* py_newmat3x3(py_OutRef out);
 PK_API c11_vec2 py_tovec2(py_Ref self);
 PK_API c11_vec3 py_tovec3(py_Ref self);
 PK_API c11_vec2i py_tovec2i(py_Ref self);
 PK_API c11_vec3i py_tovec3i(py_Ref self);
+PK_API c11_vec4i py_tovec4i(py_Ref self);
 PK_API c11_mat3x3* py_tomat3x3(py_Ref self);
 PK_API c11_color32 py_tocolor32(py_Ref self);
 
@@ -1048,6 +1038,9 @@ PK_API char* py_profiler_report();
 /************* Others *************/
 int64_t time_ns();
 int64_t time_monotonic_ns();
+py_i64 cpy11__int_floordiv(py_i64 a, py_i64 b);
+py_i64 cpy11__int_mod(py_i64 a, py_i64 b);
+void cpy11__float_divmod(double vx, double wx, double *floordiv, double *mod);
 
 /// An utility function to read a line from stdin for REPL.
 PK_API int py_replinput(char* buf, int max_size);
@@ -1136,6 +1129,7 @@ enum py_PredefinedType {
     tp_vec3,
     tp_vec2i,
     tp_vec3i,
+    tp_vec4i,
     tp_mat3x3,
     tp_color32,
     /* array2d */
@@ -1145,6 +1139,26 @@ enum py_PredefinedType {
     tp_array2d_view,
     tp_chunked_array2d,
 };
+
+#ifndef PK_IS_AMALGAMATED_C
+#ifdef PK_IS_PUBLIC_INCLUDE
+typedef struct py_TValue {
+    py_Type type;
+    bool is_ptr;
+    int extra;
+
+    union {
+        int64_t _i64;
+        double _f64;
+        bool _bool;
+        py_CFunction _cfunc;
+        void* _obj;
+        void* _ptr;
+        char _chars[16];
+    };
+} py_TValue;
+#endif
+#endif
 
 #ifdef __cplusplus
 }

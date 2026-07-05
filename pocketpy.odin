@@ -118,11 +118,12 @@ py_f64 :: f64
 /// A generic destructor function.
 py_Dtor :: proc "c" (rawptr)
 
+import "core:c"
+
 py_TValue :: struct {
 	type:   py_Type,
-	is_ptr: i32,
-	extra:  i32,
-
+	is_ptr: c.bool,
+	extra:  c.int,
 	using _: struct #raw_union {
 		_i64:   i64,
 		_chars: [16]i8,
@@ -197,7 +198,7 @@ py_AppCallbacks :: struct {
 /// @param argc number of arguments.
 /// @param argv array of arguments. Use `py_arg(i)` macro to get the i-th argument.
 /// @return `true` if the function is successful or `false` if an exception is raised.
-bool :: proc "c" (^i32) -> i32
+py_CFunction :: proc "c" (argc: int, argv: [^]py_TValue) -> i32
 
 /// Python compiler modes.
 /// + `EXEC_MODE`: for statements.
@@ -389,7 +390,7 @@ foreign lib {
 	py_newnil :: proc(py_OutRef) ---
 
 	/// Create a `nativefunc` object.
-	py_newnativefunc :: proc(_: py_OutRef, py_CFunction: i32) ---
+	py_newnativefunc :: proc(out: py_OutRef, func: py_CFunction) ---
 
 	/// Create a `function` object.
 	py_newfunction :: proc(out: py_OutRef, sig: cstring, f: i32, docstring: cstring, slots: i32) -> py_Name ---
@@ -523,7 +524,7 @@ foreign lib {
 
 	/// Check if the object is an instance of the given type exactly.
 	/// Raise `TypeError` if the check fails.
-	py_checktype :: proc() -> i32 ---
+	py_checktype :: proc(ref: py_Ref, type: py_Type) -> i32 ---
 
 	/// Check if the object is an instance of the given type or its subclass.
 	/// Raise `TypeError` if the check fails.
@@ -666,7 +667,7 @@ foreign lib {
 	/// `kwargc` is the number of keyword arguments.
 	/// The result will be set to `py_retval()`.
 	/// The stack size will be reduced by `2 + argc + kwargc * 2`.
-	py_vectorcall :: proc() -> i32 ---
+	py_vectorcall :: proc(argc: u16, kwargc: u16) -> i32 ---
 
 	/// Call a function.
 	/// It prepares the stack and then performs a `vectorcall(argc, 0, false)`.
@@ -831,7 +832,7 @@ foreign lib {
 	py_formatexc :: proc() -> cstring ---
 
 	/// Raise an exception by type and message. Always return false.
-	py_exception :: proc() -> i32 ---
+	py_exception :: proc(type: py_Type, fmt: cstring, #c_vararg args: ..any) -> i32 ---
 
 	/// Raise an exception object. Always return false.
 	py_raise                        :: proc() -> i32 ---

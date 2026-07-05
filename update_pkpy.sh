@@ -1,7 +1,7 @@
 #!/bin/sh
 
 set -e
-mkdir -p libs
+mkdir -p {libs,pocketpy}
 
 # todo: make tmp
 git clone https://github.com/pocketpy/pocketpy.git /tmp/pocketpy --depth=1
