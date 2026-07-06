@@ -22,8 +22,6 @@ int_add :: proc "c" (argc: int, argv: [^]py.TValue) -> i32 {
 	a := py.toint(&argv[0])
 	b := py.toint(&argv[1])
 
-	fmt.printfln("inside: %s %s", a, b)
-
 	py.newint(py.retval(), a + b)
 	return 1
 }
