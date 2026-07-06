@@ -321,7 +321,7 @@ foreign lib {
 	/// @param mode compile mode. Use `EXEC_MODE` for statements `EVAL_MODE` for expressions.
 	/// @param module target module. Use NULL for the main module.
 	/// @return `true` if the execution is successful or `false` if an exception is raised.
-	exec :: proc(source: cstring, filename: cstring, mode: CompileMode, module: Ref) -> i32 ---
+	exec :: proc(source: cstring, filename: cstring, mode: CompileMode, module: Ref) -> bool ---
 
 	/// Evaluate a source string. Equivalent to `exec(source, "<string>", EVAL_MODE, module)`.
 	eval :: proc() -> i32 ---
@@ -517,7 +517,7 @@ foreign lib {
 
 	/// Check if the object is an instance of the given type exactly.
 	/// Raise `TypeError` if the check fails.
-	checktype :: proc(ref: Ref, type: Type) -> i32 ---
+	checktype :: proc(ref: Ref, type: Type) -> bool ---
 
 	/// Check if the object is an instance of the given type or its subclass.
 	/// Raise `TypeError` if the check fails.
@@ -660,7 +660,7 @@ foreign lib {
 	/// `kwargc` is the number of keyword arguments.
 	/// The result will be set to `retval()`.
 	/// The stack size will be reduced by `2 + argc + kwargc * 2`.
-	vectorcall :: proc(argc: u16, kwargc: u16) -> i32 ---
+	vectorcall :: proc(argc: u16, kwargc: u16) -> bool ---
 
 	/// Call a function.
 	/// It prepares the stack and then performs a `vectorcall(argc, 0, false)`.

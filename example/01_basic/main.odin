@@ -12,10 +12,10 @@ int_add :: proc "c" (argc: int, argv: [^]py.TValue) -> i32 {
 		return py.exception(43, "expected %d arguments, got %d", 2, argc)
 	}
 
-	if py.checktype(&argv[0], 3) == 0 {
+	if !py.checktype(&argv[0], 3) {
 		return 0
 	}
-	if py.checktype(&argv[1], 3) == 0 {
+	if !py.checktype(&argv[1], 3) {
 		return 0
 	}
 
@@ -34,10 +34,13 @@ tmpr0 :: proc () -> py.GlobalRef {
 
 main :: proc () {
 	py.initialize()
+	defer py.finalize()
 
-	ok: i32 = py.exec("print(f\"Hello World!\")", "<string>", .EXEC_MODE, nil)
-	if ok == 0 {
+	ok := py.exec("print(f\"Hello World!\")", "<string>", .EXEC_MODE, nil)
+	if !ok {
 		// error
+		py.printexc()
+		return
 	}
 
 	// Create a list
@@ -52,9 +55,11 @@ main :: proc () {
 	py.pushnil()
 	py.push(r0)
 
-	ok2 := py.vectorcall(1, 0)
-	if ok2 == 0 {
+	ok = py.vectorcall(1, 0)
+	if !ok {
 		// error
+		py.printexc()
+		return
 	}
 
 	fmt.println("Sum of the list:", py.toint(py.retval()))
@@ -62,14 +67,13 @@ main :: proc () {
 	py.newnativefunc(r0, int_add)
 	py.setglobal(py.name("add"), r0)
 
-	ok3 := py.exec("add(7, 4)", "<string>", .EVAL_MODE, nil)
-	if ok3 == 0 {
+	ok = py.exec("add(7, 4)", "<string>", .EVAL_MODE, nil)
+	if !ok {
 		// error
 		py.printexc()
+		return
 	}
 
 	res: i64 = py.toint(py.retval())
 	fmt.println("Sum of 2 variables:", res)
-
-	py.finalize()
 }
