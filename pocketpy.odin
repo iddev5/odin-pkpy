@@ -108,7 +108,7 @@ OpaqueName :: struct {}
 Name :: ^OpaqueName
 
 /// An integer that represents a python type. `0` is invalid.
-Type :: i16
+Type :: PredefinedType
 
 /// A generic destructor function.
 Dtor :: proc "c" (rawptr)
@@ -191,7 +191,9 @@ AppCallbacks :: struct {
 /// @param argc number of arguments.
 /// @param argv array of arguments. Use `arg(i)` macro to get the i-th argument.
 /// @return `true` if the function is successful or `false` if an exception is raised.
-CFunction :: proc "c" (argc: int, argv: [^]TValue) -> i32
+CFunction :: proc "c" (argc: int, argv: [^]TValue) -> bool
+
+CDictApplyFunc :: proc "c" (key: Ref, value: Ref, ctx: rawptr) -> bool
 
 /// Python compiler modes.
 /// + `EXEC_MODE`: for statements.
@@ -324,7 +326,7 @@ foreign lib {
 	exec :: proc(source: cstring, filename: cstring, mode: CompileMode, module: Ref) -> bool ---
 
 	/// Evaluate a source string. Equivalent to `exec(source, "<string>", EVAL_MODE, module)`.
-	eval :: proc() -> i32 ---
+	eval :: proc(source: cstring, module: Ref) -> bool ---
 
 	/// Run a source string with smart interpretation.
 	/// Example:
@@ -332,7 +334,7 @@ foreign lib {
 	/// `newint(r1(), 123);`
 	/// `smartexec("print(_0, _1)", NULL, r0(), r1());`
 	/// `// "abc 123" will be printed`.
-	smartexec :: proc() -> i32 ---
+	smartexec :: proc(source: cstring, module: Ref, #c_vararg args: ..any) -> bool ---
 
 	/// Evaluate a source string with smart interpretation.
 	/// Example:
@@ -340,7 +342,7 @@ foreign lib {
 	/// `smarteval("len(_)", NULL, r0());`
 	/// `int res = toint(retval());`
 	/// `// res will be 3`.
-	smarteval :: proc() -> i32 ---
+	smarteval :: proc(source: cstring, module: Ref, #c_vararg args: ..any) -> bool ---
 
 	/// Create an `int` object.
 	newint :: proc(OutRef, i64) ---
@@ -460,10 +462,10 @@ foreign lib {
 	/// Cast a `int` or `float` object in python to `double`.
 	/// If successful, return true and set the value to `out`.
 	/// Otherwise, return false and raise `TypeError`.
-	castfloat :: proc() -> i32 ---
+	castfloat :: proc(Ref, ^f64) -> bool ---
 
 	/// 32-bit version of `castfloat`.
-	castfloat32 :: proc() -> i32 ---
+	castfloat32 :: proc(Ref, ^f32) -> bool ---
 
 	/// Cast a `int` object in python to `int64_t`.
 	castint :: proc() -> i32 ---
@@ -500,7 +502,7 @@ foreign lib {
 	newtype :: proc(name: cstring, base: Type, module: GlobalRef, dtor: Dtor) -> Type ---
 
 	/// Check if the object is exactly the given type.
-	istype :: proc() -> i32 ---
+	istype :: proc(Ref, Type) -> bool ---
 
 	/// Get the type of the object.
 	typeof :: proc(self: Ref) -> Type ---
@@ -766,22 +768,22 @@ foreign lib {
 	next :: proc(Ref) -> i32 ---
 
 	/// Python equivalent to `str(val)`.
-	str :: proc() -> i32 ---
+	str :: proc(val: Ref) -> bool ---
 
 	/// Python equivalent to `repr(val)`.
-	repr :: proc(Ref) -> bool ---
+	repr :: proc(val: Ref) -> bool ---
 
 	/// Python equivalent to `len(val)`.
-	len :: proc() -> i32 ---
+	len :: proc(val: Ref) -> bool ---
 
 	/// Python equivalent to `getattr(self, name)`.
-	getattr :: proc() -> i32 ---
+	getattr :: proc(self: Ref, name: Name) -> bool ---
 
 	/// Python equivalent to `setattr(self, name, val)`.
-	setattr :: proc() -> i32 ---
+	setattr :: proc(self: Ref, name: Name, val: Ref) -> bool ---
 
 	/// Python equivalent to `delattr(self, name)`.
-	delattr :: proc() -> i32 ---
+	delattr :: proc(self: Ref, name: Name) -> bool ---
 
 	/// Python equivalent to `self[key]`.
 	getitem :: proc() -> i32 ---
@@ -826,7 +828,7 @@ foreign lib {
 	formatexc :: proc() -> cstring ---
 
 	/// Raise an exception by type and message. Always return false.
-	exception :: proc(type: Type, fmt: cstring, #c_vararg args: ..any) -> i32 ---
+	exception :: proc(type: Type, fmt: cstring, #c_vararg args: ..any) -> bool ---
 
 	/// Raise an exception object. Always return false.
 	raise                 			:: proc() -> i32 ---
@@ -893,7 +895,7 @@ foreign lib {
 	dict_delitem_by_int :: proc(self: Ref, key: i64) -> i32 ---
 
 	/// true: success, false: error
-	dict_apply :: proc() -> i32 ---
+	dict_apply :: proc(self: Ref, f: CDictApplyFunc, ctx: rawptr) -> bool ---
 
 	/// noexcept
 	dict_len :: proc(self: Ref) -> i32 ---
@@ -985,6 +987,21 @@ tmpr3 :: proc () -> GlobalRef { return getreg(11) }
 sysr0 :: proc () -> GlobalRef { return getreg(12) }  // for debugger
 sysr1 :: proc () -> GlobalRef { return getreg(13) }  // for pybind11
 
+isint :: proc (self: Ref) -> bool { return istype(self, .int) }
+isfloat :: proc (self: Ref) -> bool { return istype(self, .float) }
+isbool :: proc (self: Ref) -> bool { return istype(self, .bool) }
+isstr :: proc (self: Ref) -> bool { return istype(self, .str) }
+islist :: proc (self: Ref) -> bool { return istype(self, .list) }
+istuple :: proc (self: Ref) -> bool { return istype(self, .tuple) }
+isdict :: proc (self: Ref) -> bool { return istype(self, .dict) }
+isnil :: proc (self: Ref) -> bool { return istype(self, .nil) }
+isnone :: proc (self: Ref) -> bool { return istype(self, .NoneType) }
+
+checkint :: proc (self: Ref) -> bool { return checktype(self, .int) }
+checkfloat :: proc (self: Ref) -> bool { return checktype(self, .float) }
+checkbool :: proc (self: Ref) -> bool { return checktype(self, .bool) }
+checkstr :: proc (self: Ref) -> bool { return checktype(self, .str) }
+
 /// Python favored string formatting.
 /// %d: int
 /// %i: i64 (int64_t)
@@ -996,7 +1013,7 @@ sysr1 :: proc () -> GlobalRef { return getreg(13) }  // for pybind11
 /// %p: void*
 /// %t: Type
 /// %n: Name
-PredefinedType :: enum u32 {
+PredefinedType :: enum i16 {
 	nil                   = 0,
 	object                = 1,
 	type                  = 2,  // Type
