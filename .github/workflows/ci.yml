@@ -7,7 +7,7 @@ on:
     pull_request:
 
 jobs:
-    build:
+    build-linux:
         name: Build ${{ matrix.os }}
         timeout-minutes: 5
         runs-on: ${{ matrix.os }}
@@ -22,6 +22,22 @@ jobs:
             - name: Install dependencies
               run: sudo apt install clang
             - name: Build library
-              run: bash update_pkpy.sh
+              run: bash pocketpy/build_linux.sh
             - name: Test all examples
               run: bash run_examples.sh
+    build-window:
+        name: Build ${{ matrix.os }}
+        timeout-minutes: 5
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix: 
+                os: [windows-latest]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: laytan/setup-odin@v2
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+            - name: Install dependencies
+              uses: ilammy/msvc-dev-cmd@v1
+            - name: Build library
+              run: pocketpy\build_windows.bat
