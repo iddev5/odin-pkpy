@@ -1,0 +1,27 @@
+name: CI
+
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+
+jobs:
+    build:
+        name: Build ${{ matrix.os }}
+        timeout-minutes: 5
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix: 
+                os: [ubuntu-latest]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: laytan/setup-odin@v2
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+            - name: Install dependencies
+              run: sudo apt install clang
+            - name: Build library
+              run: bash update_pkpy.sh
+            - name: Test all examples
+              run: bash run_examples.sh
