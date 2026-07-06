@@ -418,35 +418,35 @@ foreign lib {
 	/// @param obj the target object.
 	/// @param sig signature of the function. e.g. `add(x, y)`.
 	/// @param f function to bind.
-	bind :: proc(obj: Ref, sig: cstring, f: i32) ---
+	bind :: proc(obj: Ref, sig: cstring, f: CFunction) ---
 
 	/// Bind a method to type via "argc-based" style.
 	/// @param type the target type.
 	/// @param name name of the method.
 	/// @param f function to bind.
-	bindmethod :: proc(type: Type, name: cstring, f: i32) ---
+	bindmethod :: proc(type: Type, name: cstring, f: CFunction) ---
 
 	/// Bind a static method to type via "argc-based" style.
 	/// @param type the target type.
 	/// @param name name of the method.
 	/// @param f function to bind.
-	bindstaticmethod :: proc(type: Type, name: cstring, f: i32) ---
+	bindstaticmethod :: proc(type: Type, name: cstring, f: CFunction) ---
 
 	/// Bind a function to the object via "argc-based" style.
 	/// @param obj the target object.
 	/// @param name name of the function.
 	/// @param f function to bind.
-	bindfunc :: proc(obj: Ref, name: cstring, f: i32) ---
+	bindfunc :: proc(obj: Ref, name: cstring, f: CFunction) ---
 
 	/// Bind a property to type.
 	/// @param type the target type.
 	/// @param name name of the property.
 	/// @param getter getter function.
 	/// @param setter setter function. Use `NULL` if not needed.
-	bindproperty :: proc(type: Type, name: cstring, getter: i32, setter: i32) ---
+	bindproperty :: proc(type: Type, name: cstring, getter: CFunction, setter: CFunction) ---
 
 	/// Bind a magic method to type.
-	bindmagic :: proc(type: Type, name: Name, f: i32) ---
+	bindmagic :: proc(type: Type, name: Name, f: CFunction) ---
 
 	/// Convert an `int` object in python to `int64_t`.
 	toint :: proc(Ref) -> i64 ---
