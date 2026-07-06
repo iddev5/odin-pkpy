@@ -25,7 +25,7 @@ jobs:
               run: bash pocketpy/build_linux.sh
             - name: Test all examples
               run: bash run_examples.sh
-    build-window:
+    build-windows:
         name: Build ${{ matrix.os }}
         timeout-minutes: 5
         runs-on: ${{ matrix.os }}
@@ -41,3 +41,5 @@ jobs:
               uses: ilammy/msvc-dev-cmd@v1
             - name: Build library
               run: pocketpy\build_windows.bat
+            - name: Test all examples
+              run: .\run_examples.bat

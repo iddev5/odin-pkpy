@@ -5,8 +5,20 @@
  */
 package pocketpy
 
-foreign import lib {
-	"libs/libpocketpy.a"
+when ODIN_OS == .Windows {
+	when ODIN_DEBUG {
+		foreign import lib { "libs/pocketpy_debug.lib" }
+	} else {
+		foreign import lib { "libs/pocketpy_release.lib" }
+	}
+} else when ODIN_OS == .Linux {
+	when ODIN_DEBUG {
+		foreign import lib { "libs/libpocketpy_debug.a" }
+	} else {
+		foreign import lib { "libs/libpocketpy_release.a" }
+	}
+} else {
+	#panic("This OS is currently not supported")
 }
 
 import "core:c"
