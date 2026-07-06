@@ -1,8 +1,3 @@
-/*
- *  Copyright (c) 2026 blueloveTH
- *  Distributed Under The MIT License
- *  https://github.com/pocketpy/pocketpy
- */
 package pocketpy
 
 when ODIN_OS == .Windows {
