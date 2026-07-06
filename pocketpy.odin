@@ -769,7 +769,7 @@ foreign lib {
 	str :: proc() -> i32 ---
 
 	/// Python equivalent to `repr(val)`.
-	repr :: proc() -> i32 ---
+	repr :: proc(Ref) -> bool ---
 
 	/// Python equivalent to `len(val)`.
 	len :: proc() -> i32 ---
@@ -839,7 +839,7 @@ foreign lib {
 
 	/// Create a `tuple` with `n` UNINITIALIZED elements.
 	/// You should initialize all elements before using it.
-	newtuple      :: proc(_: OutRef, n: i32) -> ObjectRef ---
+	newtuple      :: proc(_: OutRef, n: i32) -> [^]TValue --- /// TODO: original return value: ObjectRef
 	tuple_data    :: proc(self: Ref) -> ObjectRef ---
 	tuple_getitem :: proc(self: Ref, i: i32) -> ObjectRef ---
 	tuple_setitem :: proc(self: Ref, i: i32, val: Ref) ---
@@ -869,7 +869,7 @@ foreign lib {
 	dict_getitem :: proc(self: Ref, key: Ref) -> i32 ---
 
 	/// true: success, false: error
-	dict_setitem :: proc() -> i32 ---
+	dict_setitem :: proc(self: Ref, key: Ref, val: Ref) -> i32 ---
 
 	/// -1: error, 0: not found, 1: found (and deleted)
 	dict_delitem :: proc(self: Ref, key: Ref) -> i32 ---
@@ -881,10 +881,10 @@ foreign lib {
 	dict_getitem_by_int :: proc(self: Ref, key: i64) -> i32 ---
 
 	/// true: success, false: error
-	dict_setitem_by_str :: proc() -> i32 ---
+	dict_setitem_by_str :: proc(self: Ref, key: cstring, val: Ref) -> i32 ---
 
 	/// true: success, false: error
-	dict_setitem_by_int :: proc() -> i32 ---
+	dict_setitem_by_int :: proc(self: Ref, key: i64, val: Ref) -> i32 ---
 
 	/// -1: error, 0: not found, 1: found (and deleted)
 	dict_delitem_by_str :: proc(self: Ref, key: cstring) -> i32 ---
@@ -968,6 +968,22 @@ foreign lib {
 	/// An utility function to read a line from stdin for REPL.
 	replinput :: proc(buf: cstring, max_size: i32) -> i32 ---
 }
+
+r0 :: proc () -> GlobalRef { return getreg(0) }
+r1 :: proc () -> GlobalRef { return getreg(1) }
+r2 :: proc () -> GlobalRef { return getreg(2) }
+r3 :: proc () -> GlobalRef { return getreg(3) }
+r4 :: proc () -> GlobalRef { return getreg(4) }
+r5 :: proc () -> GlobalRef { return getreg(5) }
+r6 :: proc () -> GlobalRef { return getreg(6) }
+r7 :: proc () -> GlobalRef { return getreg(7) }
+
+tmpr0 :: proc () -> GlobalRef { return getreg(8) }
+tmpr1 :: proc () -> GlobalRef { return getreg(9) }
+tmpr2 :: proc () -> GlobalRef { return getreg(10) }
+tmpr3 :: proc () -> GlobalRef { return getreg(11) }
+sysr0 :: proc () -> GlobalRef { return getreg(12) }  // for debugger
+sysr1 :: proc () -> GlobalRef { return getreg(13) }  // for pybind11
 
 /// Python favored string formatting.
 /// %d: int
