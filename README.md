@@ -4,7 +4,7 @@ Odin bindings for [PocketPy](https://github.com/pocketpy/pocketpy)
 
 The bindings were initially auto-generated with odin-c-bindgen and then modified manually. The API tries to be as similar to the upstream C API as possible however minor modifications have been done where needed.
 
-NOTE: This library is work in progress, certain functions are still not present or broken
+NOTE: This library is unstable software, many functions are still untested and the API may be crude at times.
 
 ## How to use
 

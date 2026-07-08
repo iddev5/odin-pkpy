@@ -19,39 +19,20 @@ when ODIN_OS == .Windows {
 import "core:c"
 
 // clang-format off
-PK_VERSION             :: "2.1.8"
-PK_VERSION_MAJOR            :: 2
-PK_VERSION_MINOR            :: 1
-PK_VERSION_PATCH            :: 8
-PK_ENABLE_OS                :: 1
-PK_ENABLE_THREADS           :: 1
-PK_ENABLE_DETERMINISM       :: 0
-PK_ENABLE_WATCHDOG          :: 0
-PK_ENABLE_CUSTOM_SNAME      :: 0
-PK_ENABLE_MIMALLOC          :: 0
-PK_GC_MIN_THRESHOLD     :: 20000
-PK_VM_STACK_SIZE        :: 16384
-PK_MAX_CO_VARNAMES          :: 64
+VERSION             :: "2.1.8"
+VERSION_MAJOR            :: 2
+VERSION_MINOR            :: 1
+VERSION_PATCH            :: 8
 
-/*************** internal settings ***************/
 // This is the maximum character length of a module path
-PK_MAX_MODULE_PATH_LEN      :: 63
-
-// This is some math constants
-PK_M_PI                     :: 3.1415926535897932384
-PK_M_E                      :: 2.7182818284590452354
-PK_M_DEG2RAD                :: 0.017453292519943295
-PK_M_RAD2DEG                :: 57.29577951308232
+MAX_MODULE_PATH_LEN      :: 63
 
 // Hash table load factor (smaller ones mean less collision but more memory)
 // For class instance
-PK_INST_ATTR_LOAD_FACTOR    :: 0.67
+INST_ATTR_LOAD_FACTOR    :: 0.67
 
 // For class itself
-PK_TYPE_ATTR_LOAD_FACTOR    :: 0.5
-PY_SYS_PLATFORM          :: 5
-PY_SYS_PLATFORM_STRING   :: "linux"
-PK_IS_DESKTOP_PLATFORM   :: 1
+TYPE_ATTR_LOAD_FACTOR    :: 0.5
 
 c11_vec2i :: struct #raw_union {
 	using _: struct {
@@ -68,6 +49,14 @@ c11_vec3i :: struct #raw_union {
 	},
 
 	data: [3]i32,
+}
+
+c11_vec4i :: struct #raw_union {
+	using _: struct {
+		x, y, z, w: i32,
+	},
+
+	data: [4]i32,
 }
 
 c11_vec2 :: struct #raw_union {
@@ -109,6 +98,7 @@ c11_color32 :: struct #raw_union {
 	_u32: u32,
 }
 
+/// A helper struct for `Name`.
 OpaqueName :: struct {}
 
 /// A pointer that represents a python identifier. For fast name resolution.
@@ -120,6 +110,7 @@ Type :: PredefinedType
 /// A generic destructor function.
 Dtor :: proc "c" (rawptr)
 
+// NOTE: this type is complete but it is also opaque, so shouldn't be needed
 TValue :: struct {
 	type:   Type,
 	is_ptr: c.bool,
@@ -208,32 +199,9 @@ CDictApplyFunc :: proc "c" (key: Ref, value: Ref, ctx: rawptr) -> bool
 /// + `SINGLE_MODE`: for REPL or jupyter notebook execution.
 /// + `RELOAD_MODE`: for reloading a module without allocating new types if possible.
 CompileMode :: enum u32 {
-	/// Python compiler modes.
-	/// + `EXEC_MODE`: for statements.
-	/// + `EVAL_MODE`: for expressions.
-	/// + `SINGLE_MODE`: for REPL or jupyter notebook execution.
-	/// + `RELOAD_MODE`: for reloading a module without allocating new types if possible.
 	EXEC_MODE   = 0,
-
-	/// Python compiler modes.
-	/// + `EXEC_MODE`: for statements.
-	/// + `EVAL_MODE`: for expressions.
-	/// + `SINGLE_MODE`: for REPL or jupyter notebook execution.
-	/// + `RELOAD_MODE`: for reloading a module without allocating new types if possible.
 	EVAL_MODE   = 1,
-
-	/// Python compiler modes.
-	/// + `EXEC_MODE`: for statements.
-	/// + `EVAL_MODE`: for expressions.
-	/// + `SINGLE_MODE`: for REPL or jupyter notebook execution.
-	/// + `RELOAD_MODE`: for reloading a module without allocating new types if possible.
 	SINGLE_MODE = 2,
-
-	/// Python compiler modes.
-	/// + `EXEC_MODE`: for statements.
-	/// + `EVAL_MODE`: for expressions.
-	/// + `SINGLE_MODE`: for REPL or jupyter notebook execution.
-	/// + `RELOAD_MODE`: for reloading a module without allocating new types if possible.
 	RELOAD_MODE = 3,
 }
 
@@ -316,13 +284,13 @@ foreign lib {
 
 	/// Compile a source string into a code object.
 	/// Use python's `exec()` or `eval()` to execute it.
-	compile :: proc() -> i32 ---
+	compile :: proc(source: cstring, filename: cstring, mode: CompileMode, is_dynamic: bool) -> bool ---
 
 	/// Compile a `.py` file into a `.pyc` file.
-	compilefile :: proc() -> i32 ---
+	compilefile :: proc(src_path: cstring, dst_path: cstring) -> bool ---
 
 	/// Run a compiled code object.
-	execo :: proc() -> i32 ---
+	execo :: proc(data: rawptr, size: i32, filename: cstring, module: Ref) -> bool ---
 
 	/// Run a source string.
 	/// @param source source string.
@@ -475,10 +443,10 @@ foreign lib {
 	castfloat32 :: proc(Ref, ^f32) -> bool ---
 
 	/// Cast a `int` object in python to `int64_t`.
-	castint :: proc() -> i32 ---
+	castint :: proc(Ref, out: ^i64) -> i32 ---
 
 	/// Convert a `bool` object in python to `bool`.
-	tobool :: proc() -> i32 ---
+	tobool :: proc(Ref) -> i32 ---
 
 	/// Convert a `type` object in python to `Type`.
 	totype :: proc(Ref) -> Type ---
@@ -515,10 +483,10 @@ foreign lib {
 	typeof :: proc(self: Ref) -> Type ---
 
 	/// Check if the object is an instance of the given type.
-	isinstance :: proc() -> i32 ---
+	isinstance :: proc(obj: Ref, type: Type) -> bool ---
 
 	/// Check if the derived type is a subclass of the base type.
-	issubclass :: proc() -> i32 ---
+	issubclass :: proc(derived: Type, base: Type) -> bool ---
 
 	/// Get type by module and name. e.g. `gettype("time", name("struct_time"))`.
 	/// Return `0` if not found.
@@ -530,7 +498,7 @@ foreign lib {
 
 	/// Check if the object is an instance of the given type or its subclass.
 	/// Raise `TypeError` if the check fails.
-	checkinstance :: proc() -> i32 ---
+	checkinstance :: proc(self: Ref, type: Type) -> bool ---
 
 	/// Get the magic method from the given type only.
 	/// Return `nil` if not found.
@@ -598,7 +566,7 @@ foreign lib {
 
 	/// Delete an item from the object's `__dict__`.
 	/// Return `true` if the deletion is successful.
-	deldict :: proc() -> i32 ---
+	deldict :: proc(self: Ref, name: Name) -> bool ---
 
 	/// Prepare an insertion to the object's `__dict__`.
 	emplacedict :: proc(self: Ref, name: Name) -> ItemRef ---
@@ -606,7 +574,7 @@ foreign lib {
 	/// Apply a function to all items in the object's `__dict__`.
 	/// Return `true` if the function is successful for all items.
 	/// NOTE: Be careful if `f` modifies the object's `__dict__`.
-	applydict :: proc() -> i32 ---
+	applydict :: proc(self: Ref, f: CDictApplyFunc, ctx: rawptr) -> bool ---
 
 	/// Clear the object's `__dict__`. This function is dangerous.
 	cleardict :: proc(self: Ref) ---
@@ -656,11 +624,11 @@ foreign lib {
 	/// Assume the object is located at the top of the stack.
 	/// If return true:  `[self] -> [unbound, self]`.
 	/// If return false: `[self] -> [self]` (no change).
-	pushmethod :: proc() -> i32 ---
+	pushmethod :: proc(name: Name) -> bool ---
 
 	/// Evaluate an expression and push the result to the stack.
 	/// This function is used for testing.
-	pusheval :: proc() -> i32 ---
+	pusheval :: proc(expr: cstring, module: GlobalRef) -> bool ---
 
 	/// Call a callable object via pocketpy's calling convention.
 	/// You need to prepare the stack using the following format:
@@ -675,79 +643,79 @@ foreign lib {
 	/// It prepares the stack and then performs a `vectorcall(argc, 0, false)`.
 	/// The result will be set to `retval()`.
 	/// The stack remains unchanged if successful.
-	call :: proc() -> i32 ---
+	call :: proc(f: Ref, argc: i32, argv: [^]TValue) -> bool ---
 
 	/// Call a type to create a new instance.
-	tpcall :: proc() -> i32 ---
+	tpcall :: proc(type: Type, argc: i32, argv: [^]TValue) -> bool ---
 
 	/// Call a `CFunction` in a safe way.
 	/// This function does extra checks to help you debug `CFunction`.
-	callcfunc :: proc() -> i32 ---
+	callcfunc :: proc(f: CFunction, argc: i32, argv: [^]Ref) -> bool ---
 
 	/// Perform a binary operation.
 	/// The result will be set to `retval()`.
 	/// The stack remains unchanged after the operation.
-	binaryop :: proc() -> i32 ---
+	binaryop :: proc(lhs: Ref, rhs: Ref, op: Name, rop: Name) -> bool ---
 
 	/// lhs + rhs
-	binaryadd :: proc() -> i32 ---
+	binaryadd :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs - rhs
-	binarysub :: proc() -> i32 ---
+	binarysub :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs * rhs
-	binarymul :: proc() -> i32 ---
+	binarymul :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs / rhs
-	binarytruediv :: proc() -> i32 ---
+	binarytruediv :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs // rhs
-	binaryfloordiv :: proc() -> i32 ---
+	binaryfloordiv :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs % rhs
-	binarymod :: proc() -> i32 ---
+	binarymod :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs ** rhs
-	binarypow :: proc() -> i32 ---
+	binarypow :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs << rhs
-	binarylshift :: proc() -> i32 ---
+	binarylshift :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs >> rhs
-	binaryrshift :: proc() -> i32 ---
+	binaryrshift :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs & rhs
-	binaryand :: proc() -> i32 ---
+	binaryand :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs | rhs
-	binaryor :: proc() -> i32 ---
+	binaryor :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs ^ rhs
-	binaryxor :: proc() -> i32 ---
+	binaryxor :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs @ rhs
-	binarymatmul :: proc() -> i32 ---
+	binarymatmul :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs == rhs
-	eq :: proc() -> i32 ---
+	eq :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs != rhs
-	ne :: proc() -> i32 ---
+	ne :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs < rhs
-	lt :: proc() -> i32 ---
+	lt :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs <= rhs
-	le :: proc() -> i32 ---
+	le :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs > rhs
-	gt :: proc() -> i32 ---
+	gt :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// lhs >= rhs
-	ge :: proc() -> i32 ---
+	ge :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// Python equivalent to `lhs is rhs`.
-	isidentical :: proc() -> i32 ---
+	isidentical :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// Python equivalent to `bool(val)`.
 	/// 1: true, 0: false, -1: error
@@ -755,20 +723,20 @@ foreign lib {
 
 	/// Compare two objects.
 	/// 1: lhs == rhs, 0: lhs != rhs, -1: error
-	equal :: proc(lhs: Ref, rhs: Ref) -> i32 ---
+	equal :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// Compare two objects.
 	/// 1: lhs < rhs, 0: lhs >= rhs, -1: error
-	less :: proc(lhs: Ref, rhs: Ref) -> i32 ---
+	less :: proc(lhs: Ref, rhs: Ref) -> bool ---
 
 	/// Python equivalent to `callable(val)`.
-	callable :: proc() -> i32 ---
+	callable :: proc(val: Ref) -> bool ---
 
 	/// Get the hash value of the object.
-	hash :: proc() -> i32 ---
+	hash :: proc(Ref, out: ^i64) -> bool ---
 
 	/// Get the iterator of the object.
-	iter :: proc() -> i32 ---
+	iter :: proc(Ref) -> bool ---
 
 	/// Get the next element from the iterator.
 	/// 1: success, 0: StopIteration, -1: error
@@ -793,13 +761,13 @@ foreign lib {
 	delattr :: proc(self: Ref, name: Name) -> bool ---
 
 	/// Python equivalent to `self[key]`.
-	getitem :: proc() -> i32 ---
+	getitem :: proc(self: Ref, key: Ref) -> bool ---
 
 	/// Python equivalent to `self[key] = val`.
-	setitem :: proc() -> i32 ---
+	setitem :: proc(self: Ref, key: Ref, val: Ref) -> bool ---
 
 	/// Python equivalent to `del self[key]`.
-	delitem :: proc() -> i32 ---
+	delitem :: proc(self: Ref, key: Ref) -> bool ---
 
 	/// Get a module by path.
 	getmodule :: proc(path: cstring) -> GlobalRef ---
@@ -808,7 +776,7 @@ foreign lib {
 	newmodule :: proc(path: cstring) -> GlobalRef ---
 
 	/// Reload an existing module.
-	importlib_reload :: proc() -> i32 ---
+	importlib_reload :: proc(module: Ref) -> bool ---
 
 	/// Import a module.
 	/// The result will be set to `retval()`.
@@ -817,11 +785,11 @@ foreign lib {
 	@(link_name="py_import") importlib :: proc(path: cstring) -> i32 ---
 
 	/// Check if there is an unhandled exception.
-	checkexc :: proc() -> i32 ---
+	checkexc :: proc() -> bool ---
 
 	/// Check if the unhandled exception is an instance of the given type.
 	/// If match, the exception will be stored in `retval()`.
-	matchexc :: proc() -> i32 ---
+	matchexc :: proc(type: Type) -> bool ---
 
 	/// Clear the unhandled exception.
 	/// @param p0 the unwinding point. Use `NULL` if not needed.
@@ -838,9 +806,24 @@ foreign lib {
 	exception :: proc(type: Type, fmt: cstring, #c_vararg args: ..any) -> bool ---
 
 	/// Raise an exception object. Always return false.
-	raise                 			:: proc() -> i32 ---
-	KeyError                        :: proc() -> i32 ---
-	StopIteration                   :: proc() -> i32 ---
+	raise                 			:: proc() -> bool ---
+
+	// TODO: Unimplemented
+	// NameError
+	// TypeError
+	// RuntimeError
+	// TimeoutError
+	// OSError
+	// ValueError
+	// IndexError
+	// ImportError
+	// ZeroDivisionError
+	// AttributeError
+	// UnboundLocalError
+
+	KeyError                        :: proc(key: Ref) -> bool ---
+	StopIteration                   :: proc() -> bool ---
+
 	debugger_waitforattach       :: proc(hostname: cstring, port: u16) ---
 	debugger_status              :: proc() -> i32 ---
 	debugger_exceptionbreakpoint :: proc(exc: Ref) ---
@@ -878,7 +861,7 @@ foreign lib {
 	dict_getitem :: proc(self: Ref, key: Ref) -> i32 ---
 
 	/// true: success, false: error
-	dict_setitem :: proc(self: Ref, key: Ref, val: Ref) -> i32 ---
+	dict_setitem :: proc(self: Ref, key: Ref, val: Ref) -> bool ---
 
 	/// -1: error, 0: not found, 1: found (and deleted)
 	dict_delitem :: proc(self: Ref, key: Ref) -> i32 ---
@@ -890,10 +873,10 @@ foreign lib {
 	dict_getitem_by_int :: proc(self: Ref, key: i64) -> i32 ---
 
 	/// true: success, false: error
-	dict_setitem_by_str :: proc(self: Ref, key: cstring, val: Ref) -> i32 ---
+	dict_setitem_by_str :: proc(self: Ref, key: cstring, val: Ref) -> bool ---
 
 	/// true: success, false: error
-	dict_setitem_by_int :: proc(self: Ref, key: i64, val: Ref) -> i32 ---
+	dict_setitem_by_int :: proc(self: Ref, key: i64, val: Ref) -> bool ---
 
 	/// -1: error, 0: not found, 1: found (and deleted)
 	dict_delitem_by_str :: proc(self: Ref, key: cstring) -> i32 ---
@@ -944,17 +927,17 @@ foreign lib {
 
 	/************* json module *************/
 	/// Python equivalent to `json.dumps(val)`.
-	json_dumps :: proc() -> i32 ---
+	json_dumps :: proc(val: Ref, indent: i32) -> bool ---
 
 	/// Python equivalent to `json.loads(val)`.
-	json_loads :: proc() -> i32 ---
+	json_loads :: proc(source: cstring) -> bool ---
 
 	/************* pickle module *************/
 	/// Python equivalent to `pickle.dumps(val)`.
-	pickle_dumps :: proc() -> i32 ---
+	pickle_dumps :: proc(val: Ref) -> bool ---
 
 	/// Python equivalent to `pickle.loads(val)`.
-	pickle_loads :: proc() -> i32 ---
+	pickle_loads :: proc(data: cstring, size: i32) -> bool ---
 
 	/************* pkpy module *************/
 	/// Begin the watchdog with `timeout` in milliseconds.
@@ -973,6 +956,10 @@ foreign lib {
 	/************* Others *************/
 	time_ns           :: proc() -> i64 ---
 	time_monotonic_ns :: proc() -> i64 ---
+
+	cpy11__int_floordiv :: proc (a: i64, b: i64) -> i64 ---
+	cpy11__int_mod :: proc (a: i64, b: i64) -> i64 ---
+	cpy11__float_divmod :: proc (vx: f64, wx: f64, floordiv: ^f64, mod: ^f64) ---
 
 	/// An utility function to read a line from stdin for REPL.
 	replinput :: proc(buf: cstring, max_size: i32) -> i32 ---
